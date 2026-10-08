@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCM60002 Y=f(X) Catapult Explorer</title>
+<style>
+:root{
+  --red:#d71920; --dark:#171717; --muted:#666; --line:#d8d8d8; --soft:#f7f7f7;
+  --green:#177245; --amber:#9b6500; --blue:#2d5f8b; --purple:#6b4f8f;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#ededed;color:var(--dark);font-family:Arial,Helvetica,sans-serif}
+button,input{font:inherit}
+button{cursor:pointer}
+.app{min-height:100vh;background:#fff;display:flex;flex-direction:column}
+.topbar{
+  min-height:68px;border-bottom:1px solid var(--line);padding:12px 24px;display:flex;
+  align-items:center;justify-content:space-between;gap:18px;background:#fff;position:sticky;top:0;z-index:50
+}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.mark{width:42px;height:42px;background:var(--red);color:#fff;border-radius:7px;display:grid;place-items:center;font-weight:700}
+.brand-title{font-size:18px;font-weight:700}
+.brand-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.stepbox{display:flex;align-items:center;gap:10px}
+.progress{width:190px;height:7px;background:#ececec;border-radius:999px;overflow:hidden}
+.progress>div{height:100%;background:var(--red);width:0;transition:width .2s ease}
+.steptext{font-size:12px;color:var(--muted);white-space:nowrap}
+
+.screen{display:none;width:min(1240px,100%);margin:0 auto;padding:34px 34px 44px;flex:1}
+.screen.active{display:flex;flex-direction:column}
+.kicker{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--red);font-weight:700;margin-bottom:10px}
+h1{font-size:42px;line-height:1.08;margin:0 0 14px;font-weight:600;letter-spacing:-.6px}
+h2{font-size:28px;margin:0 0 12px}
+h3{font-size:20px;margin:0 0 8px}
+p{font-size:18px;line-height:1.55;margin:8px 0}
+.lead{font-size:21px;max-width:960px;color:#333}
+.small{font-size:14px;color:var(--muted)}
+.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:auto;padding-top:26px}
+.btn{border:0;border-radius:8px;padding:13px 20px;background:var(--dark);color:#fff;font-weight:700}
+.btn.red{background:var(--red)}
+.btn.light{background:#f1f1f1;color:#111;border:1px solid #d3d3d3}
+.btn.ghost{background:#fff;color:#111;border:1px solid #c9c9c9}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.card{border:1px solid var(--line);border-radius:14px;background:#fff;padding:22px}
+.info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px}
+.info{border-left:4px solid var(--red);background:#fafafa;padding:17px;border-radius:9px}
+.info strong{display:block;font-size:17px;margin-bottom:5px}
+.callout{margin-top:18px;padding:16px 18px;background:#fff4f4;border:1px solid #efc7c7;border-radius:10px;font-size:18px}
+.name-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:22px}
+.name-row input{min-width:280px;padding:12px 14px;border:1px solid #bbb;border-radius:8px;font-size:16px}
+.equation{
+  font-size:48px;font-weight:700;text-align:center;margin:22px 0;padding:22px;background:#fafafa;
+  border:1px solid #ddd;border-radius:14px
+}
+.eq-y{color:var(--red)} .eq-x{color:var(--blue)} .eq-f{color:var(--purple)}
+
+.sim-wrap{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:20px;align-items:start;margin-top:18px}
+.field-card{border:1px solid #bbb;border-radius:14px;background:#fff;padding:14px;min-width:0}
+#field,#exploreField{width:100%;height:auto;display:block;border:1px solid #ddd;background:#fbfbfb;border-radius:8px}
+.control-panel{border:1px solid var(--line);border-radius:14px;background:#fafafa;padding:20px}
+.control{margin:16px 0}
+.control label{display:flex;justify-content:space-between;gap:12px;font-size:15px;font-weight:700;margin-bottom:7px}
+.control input[type=range]{width:100%}
+.launch-result{margin-top:16px;padding:14px;border-radius:10px;background:#fff;border:1px solid #ddd;min-height:82px}
+.launch-result strong{font-size:22px}
+
+.run-grid{display:grid;grid-template-columns:1.12fr .88fr;gap:20px;margin-top:20px}
+.table-wrap{overflow:auto;border:1px solid #ddd;border-radius:12px}
+.table{width:100%;border-collapse:collapse;font-size:14px;min-width:720px}
+.table th,.table td{padding:10px 8px;border-bottom:1px solid #e5e5e5;text-align:left}
+.table th{background:#fafafa;position:sticky;top:0}
+.table tr.best{background:#f4fff8}
+.run-counter{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.metric{padding:14px;border:1px solid #ddd;border-radius:10px;background:#fafafa}
+.metric .label{font-size:11px;text-transform:uppercase;color:#777;font-weight:700;letter-spacing:.05em}
+.metric .value{font-size:25px;font-weight:700;margin-top:4px}
+
+.analysis-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:20px;margin-top:20px}
+.effect-list{display:flex;flex-direction:column;gap:12px;margin-top:15px}
+.effect-row{border:1px solid #ddd;border-radius:10px;padding:13px;background:#fafafa}
+.effect-top{display:flex;justify-content:space-between;gap:10px;font-size:14px;margin-bottom:7px}
+.effect-track{height:18px;background:#ececec;border-radius:999px;overflow:hidden}
+.effect-fill{height:100%;background:var(--red);border-radius:999px}
+.big-stat{font-size:44px;font-weight:700;color:var(--red);line-height:1.05}
+.insight{padding:14px;border-left:4px solid var(--blue);background:#f8fbff;border-radius:8px;margin:12px 0;font-size:16px;line-height:1.5}
+.best-settings{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:12px}
+.setting{padding:12px;border:1px solid #ddd;border-radius:9px;background:#fff;text-align:center}
+.setting strong{display:block;font-size:18px}
+.points{font-size:18px;line-height:1.55;padding-left:22px}
+.points li{margin:8px 0}
+.hidden-canvas{display:none}
+
+@media(max-width:930px){
+  .screen{padding:24px 16px 34px}
+  h1{font-size:34px}
+  .info-grid,.sim-wrap,.run-grid,.analysis-grid,.best-settings{grid-template-columns:1fr}
+  .progress{width:105px}
+  .brand-sub{display:none}
+}
+@media(max-width:520px){
+  .topbar{padding:10px 12px}
+  .progress{display:none}
+  .screen{padding:20px 12px 30px}
+  h1{font-size:30px}
+  p,.lead{font-size:17px}
+  .equation{font-size:38px}
+  .name-row input{min-width:0;width:100%}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <div class="mark">f(x)</div>
+      <div>
+        <div class="brand-title">SCM60002 · Y = f(X) Catapult Explorer</div>
+        <div class="brand-sub">Explore inputs, collect data, analyse the process</div>
+      </div>
+    </div>
+    <div class="stepbox">
+      <div class="progress"><div id="progressFill"></div></div>
+      <div class="steptext" id="stepText">Step 1</div>
+    </div>
+  </div>
+
+  <section class="screen active">
+    <div class="kicker">Welcome</div>
+    <h1>Change the inputs. Observe the output.</h1>
+    <p class="lead">The aim of this activity is to make <strong>Y = f(X)</strong> tangible. You will operate a digital catapult, choose the input settings yourself, run as many experiments as you want, and then analyse your own data.</p>
+    <div class="info-grid">
+      <div class="info"><strong>Y</strong>Landing distance</div>
+      <div class="info"><strong>X₁</strong>Launch angle</div>
+      <div class="info"><strong>X₂</strong>Spring force</div>
+      <div class="info"><strong>X₃ & X₄</strong>Ball mass + launch height</div>
+    </div>
+    <div class="name-row">
+      <label for="studentName"><strong>Your name (optional):</strong></label>
+      <input id="studentName" type="text" placeholder="Enter your name">
+    </div>
+    <div class="actions"><button class="btn red nextBtn" type="button">Next</button></div>
+  </section>
+
+  <section class="screen">
+    <div class="kicker">The idea</div>
+    <h1>Y = f(X)</h1>
+    <div class="equation"><span class="eq-y">Y</span> = <span class="eq-f">f</span>(<span class="eq-x">X₁, X₂, X₃, X₄</span>)</div>
+    <div class="info-grid">
+      <div class="info"><strong>Y = output</strong>Where the ball lands.</div>
+      <div class="info"><strong>X₁ = angle</strong>A process setting you can control.</div>
+      <div class="info"><strong>X₂ = force</strong>How much energy is put into the launch.</div>
+      <div class="info"><strong>X₃ / X₄</strong>Ball mass and launch height.</div>
+    </div>
+    <div class="callout"><strong>Important:</strong> In this game, the catapult mechanism itself—the function <strong>f</strong>—stays fixed. You will change the X's and observe how Y responds. In a real improvement project, you could also redesign the process itself and therefore change <strong>f</strong>.</div>
+    <div class="actions">
+      <button class="btn light backBtn" type="button">Back</button>
+      <button class="btn red nextBtn" type="button">Run the baseline</button>
+    </div>
+  </section>
+
+  <section class="screen" id="baselineScreen">
+    <div class="kicker">Baseline</div>
+    <h1>Observe the current process first</h1>
+    <p class="lead">Before changing anything, run the current settings once. This creates the baseline Y.</p>
+    <div class="sim-wrap">
+      <div class="field-card"><canvas id="field" width="900" height="420"></canvas></div>
+      <div class="control-panel">
+        <h3>Baseline settings</h3>
+        <p><strong>Angle:</strong> 35°</p>
+        <p><strong>Spring force:</strong> 6 / 10</p>
+        <p><strong>Ball mass:</strong> 60 g</p>
+        <p><strong>Launch height:</strong> 1.0 m</p>
+        <button class="btn red" id="baselineLaunch" type="button">Launch baseline</button>
+        <div class="launch-result" id="baselineResult">Press Launch and observe the output Y.</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn light backBtn" type="button">Back</button>
+      <button class="btn red nextBtn" id="baselineNext" type="button" disabled>Explore the process</button>
+    </div>
+  </section>
+
+  <section class="screen" id="exploreScreen">
+    <div class="kicker">Explore · Open-ended experimentation</div>
+    <h1>Now you control the X's</h1>
+    <p class="lead">Choose any combination you want and launch the catapult. Each experiment is automatically added to your data table. You can run as many experiments as you want. Try a variety of settings so the later analysis has useful information to work with.</p>
+    <div class="sim-wrap">
+      <div class="field-card"><canvas id="exploreField" width="900" height="420"></canvas></div>
+      <div class="control-panel">
+        <div class="control">
+          <label for="angleSlider">Angle X₁ <span id="angleValue">35°</span></label>
+          <input id="angleSlider" type="range" min="20" max="60" value="35" step="1">
+        </div>
+        <div class="control">
+          <label for="forceSlider">Spring force X₂ <span id="forceValue">6</span></label>
+          <input id="forceSlider" type="range" min="3" max="9" value="6" step="1">
+        </div>
+        <div class="control">
+          <label for="massSlider">Ball mass X₃ <span id="massValue">60 g</span></label>
+          <input id="massSlider" type="range" min="40" max="80" value="60" step="10">
+        </div>
+        <div class="control">
+          <label for="heightSlider">Launch height X₄ <span id="heightValue">1.0 m</span></label>
+          <input id="heightSlider" type="range" min="0.5" max="2.0" value="1.0" step="0.1">
+        </div>
+        <button class="btn red" id="exploreLaunch" type="button">Launch experiment 1</button>
+        <div class="launch-result" id="exploreResult">Change the settings and launch.</div>
+      </div>
+    </div>
+
+    <div class="run-grid">
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Run</th><th>Angle</th><th>Force</th><th>Mass</th><th>Height</th><th>Y: distance</th></tr></thead>
+          <tbody id="runBody"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Your exploration</h3>
+        <div class="run-counter">
+          <div class="metric"><div class="label">Runs completed</div><div class="value" id="runCount">0</div></div>
+          <div class="metric"><div class="label">Best distance</div><div class="value" id="bestDistance">—</div></div>
+          <div class="metric"><div class="label">Range of Y</div><div class="value" id="yRange">—</div></div>
+        </div>
+        <div class="callout"><strong>Think while you play:</strong> Which X seems important? Does “more” always mean a larger Y? Are any relationships non-linear?</div>
+        <div class="small" style="margin-top:10px"><strong>Analysis becomes available after 6 runs.</strong> You can keep experimenting for as long as you like before analysing. Using a wider variety of settings usually produces a more informative analysis.</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn light backBtn" type="button">Back</button>
+      <button class="btn red nextBtn" id="analysisNext" type="button" disabled>Analyse my runs</button>
+    </div>
+  </section>
+
+  <section class="screen" id="analysisScreen">
+    <div class="kicker">Analyse</div>
+    <h1>What does your data tell you?</h1>
+    <div class="analysis-grid">
+      <div class="card">
+        <h2>Estimated factor importance</h2>
+        <p class="small">The game uses the experimental runs you created to estimate how strongly each factor is associated with changes in Y. This is an exploratory regression-style analysis—not a formal DOE. More varied runs generally give the analysis more information.</p>
+        <div class="effect-list" id="effectList"></div>
+      </div>
+      <div class="card">
+        <div class="small">Strongest estimated factor in your data</div>
+        <div class="big-stat" id="strongestFactor">—</div>
+        <p id="strongestText"></p>
+        <div class="insight" id="angleInsight"></div>
+        <div class="insight" id="directionInsight"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <h2>Best setting you discovered</h2>
+      <p>Your best observed run is shown below. This is not necessarily the global optimum—it is simply the best combination you tested so far. You can go back and run more experiments if you want to investigate further.</p>
+      <div class="best-settings">
+        <div class="setting"><span class="small">Angle</span><strong id="bestAngle">—</strong></div>
+        <div class="setting"><span class="small">Force</span><strong id="bestForce">—</strong></div>
+        <div class="setting"><span class="small">Mass</span><strong id="bestMass">—</strong></div>
+        <div class="setting"><span class="small">Height</span><strong id="bestHeight">—</strong></div>
+      </div>
+      <div class="callout" id="analysisAdvice"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn light backBtn" type="button">Back</button>
+      <button class="btn red nextBtn" type="button">Connect this back to Y = f(X)</button>
+    </div>
+  </section>
+
+  <section class="screen" id="resultScreen">
+    <div class="kicker">Learning summary</div>
+    <h1>You changed X to learn about Y</h1>
+    <div class="analysis-grid">
+      <div class="card">
+        <h2>Your experiment summary</h2>
+        <table class="table" style="min-width:0">
+          <tbody>
+            <tr><th>Baseline Y</th><td id="sumBaseline">—</td></tr>
+            <tr><th>Number of experimental runs</th><td id="sumRuns">—</td></tr>
+            <tr><th>Strongest estimated X</th><td id="sumStrongest">—</td></tr>
+            <tr><th>Best observed Y</th><td id="sumBest">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card" style="border-left:5px solid var(--red)">
+        <h2>The principle</h2>
+        <p>You did not directly manipulate the output <strong>Y</strong>. You changed the inputs <strong>X</strong>, observed what the process produced, collected data, and learned which factors were important.</p>
+        <button class="btn red" id="downloadPngBtn" type="button">Download my result image (PNG)</button>
+        <div class="small" style="margin-top:9px">Paste or upload the image into the online class chat.</div>
+      </div>
+    </div>
+    <div class="actions"><button class="btn red nextBtn" type="button">Conclusion</button></div>
+  </section>
+
+  <section class="screen">
+    <div class="kicker">Conclusion</div>
+    <h1>What does Y = f(X) mean for improvement?</h1>
+    <div class="card" style="border-left:5px solid var(--red)">
+      <p><strong>Y is the result. X's are the factors that help create that result. f is the process relationship connecting them.</strong></p>
+      <p>If Y is poor—too slow, too costly, too variable or too defective—simply asking for a better Y is not enough. We need to understand and control the important X's, or redesign the process itself.</p>
+    </div>
+    <ul class="points">
+      <li><strong>Not every X matters equally.</strong> Some factors have much larger effects than others.</li>
+      <li><strong>Relationships are not always linear.</strong> For angle, “more” is not always better; projectile distance tends to peak around an intermediate angle.</li>
+      <li><strong>Data helps us move from guessing to evidence.</strong> Your table gave you a basis for identifying important factors.</li>
+      <li><strong>Formal DOE goes further.</strong> It plans combinations systematically so we can estimate main effects and interactions more reliably.</li>
+      <li><strong>Lean Six Sigma connection:</strong> improve the process by identifying and controlling the critical X's that drive the Y we care about.</li>
+    </ul>
+    <div class="callout"><strong>One sentence to remember:</strong> If you want a predictable Y, understand and control the critical X's that create it.</div>
+    <div class="actions">
+      <button class="btn red" id="restartBtn" type="button">Play again</button>
+      <button class="btn ghost" id="downloadPngBtn2" type="button">Download my result image (PNG)</button>
+    </div>
+  </section>
+
+  <canvas id="resultCanvas" width="1400" height="1050" class="hidden-canvas"></canvas>
+</div>
+
+<script>
+(() => {
+  const app=document.querySelector('.app');
+  if(!app || app.dataset.ready==='1') return;
+  app.dataset.ready='1';
+
+  const screens=Array.from(document.querySelectorAll('.screen'));
+  const progressFill=document.getElementById('progressFill');
+  const stepText=document.getElementById('stepText');
+  let screenIndex=0, animating=false;
+  let baselineY=null;
+  const runs=[];
+  let analysis=null;
+
+  function showScreen(i){
+    if(animating) return;
+    screenIndex=Math.max(0,Math.min(i,screens.length-1));
+    screens.forEach((s,j)=>s.classList.toggle('active',j===screenIndex));
+    progressFill.style.width=`${((screenIndex+1)/screens.length)*100}%`;
+    stepText.textContent=`Step ${screenIndex+1} / ${screens.length}`;
+    if(screens[screenIndex].id==='analysisScreen') renderAnalysis();
+    if(screens[screenIndex].id==='resultScreen') renderSummary();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  document.querySelectorAll('.nextBtn').forEach(b=>b.addEventListener('click',()=>showScreen(screenIndex+1)));
+  document.querySelectorAll('.backBtn').forEach(b=>b.addEventListener('click',()=>showScreen(screenIndex-1)));
+
+  // Educational physical model.
+  function deterministicDistance(angle,force,mass,height){
+    const g=9.81;
+    const theta=angle*Math.PI/180;
+    const v=(8+2.4*force)*Math.sqrt(60/mass);
+    const vx=v*Math.cos(theta);
+    const vy=v*Math.sin(theta);
+    const flight=(vy+Math.sqrt(vy*vy+2*g*height))/g;
+    return vx*flight;
+  }
+  function processY(angle,force,mass,height,noise=true){
+    const base=deterministicDistance(angle,force,mass,height);
+    const variation=noise ? (Math.random()-0.5)*1.6 : 0;
+    return Math.max(0,base+variation);
+  }
+
+  function drawField(canvas,landing=null,ballProgress=null,settings=null){
+    const ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height;
+    ctx.clearRect(0,0,W,H);ctx.fillStyle='#fbfbfb';ctx.fillRect(0,0,W,H);
+    const ground=H-70,left=65,right=W-30,maxM=120;
+    ctx.strokeStyle='#999';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(left,ground);ctx.lineTo(right,ground);ctx.stroke();
+    for(let m=0;m<=maxM;m+=10){
+      const x=left+(m/maxM)*(right-left);
+      ctx.strokeStyle='#d5d5d5';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,ground);ctx.lineTo(x,ground+10);ctx.stroke();
+      ctx.fillStyle='#777';ctx.font='12px Arial';ctx.fillText(`${m}`,x-8,ground+28);
+    }
+    ctx.fillStyle='#666';ctx.font='13px Arial';ctx.fillText('metres',right-25,ground+48);
+
+    const s=settings||{angle:35,force:6,mass:60,height:1};
+    const launchY=ground-20-(s.height-0.5)*18;
+    ctx.fillStyle='#444';ctx.fillRect(left-18,launchY,46,18);
+    ctx.strokeStyle='#d71920';ctx.lineWidth=7;
+    const theta=s.angle*Math.PI/180,arm=65;
+    ctx.beginPath();ctx.moveTo(left+5,launchY);ctx.lineTo(left+5+arm*Math.cos(theta),launchY-arm*Math.sin(theta));ctx.stroke();
+
+    if(ballProgress!==null){
+      const dist=Math.min(maxM,deterministicDistance(s.angle,s.force,s.mass,s.height));
+      const t=ballProgress;
+      const bx=left+(dist/maxM)*(right-left)*t;
+      const peak=115+s.force*7;
+      const by=launchY-(4*peak*t*(1-t));
+      ctx.fillStyle='#222';ctx.beginPath();ctx.arc(bx,by,9,0,Math.PI*2);ctx.fill();
+    }
+    if(landing!==null){
+      const x=left+(Math.min(maxM,landing)/maxM)*(right-left);
+      ctx.fillStyle='#d71920';ctx.beginPath();ctx.arc(x,ground-7,8,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#111';ctx.font='bold 15px Arial';ctx.fillText(`${landing.toFixed(1)} m`,Math.min(W-85,x-25),ground-25);
+    }
+  }
+
+  const field=document.getElementById('field'), exploreField=document.getElementById('exploreField');
+  drawField(field);drawField(exploreField);
+
+  function animateLaunch(canvas,settings,y,callback){
+    if(animating) return;
+    animating=true;
+    const start=performance.now(),duration=780;
+    function frame(now){
+      const p=Math.min(1,(now-start)/duration);
+      drawField(canvas,null,p,settings);
+      if(p<1) requestAnimationFrame(frame);
+      else{
+        drawField(canvas,y,null,settings);
+        animating=false;
+        if(callback) callback();
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  document.getElementById('baselineLaunch').addEventListener('click',()=>{
+    const s={angle:35,force:6,mass:60,height:1.0};
+    const y=processY(s.angle,s.force,s.mass,s.height,true);
+    animateLaunch(field,s,y,()=>{
+      baselineY=y;
+      document.getElementById('baselineResult').innerHTML=`<strong>Baseline Y = ${y.toFixed(1)} m</strong><br><span class="small">Now you can change the X's and build your own dataset.</span>`;
+      document.getElementById('baselineNext').disabled=false;
+    });
+  });
+
+  const angle=document.getElementById('angleSlider'),force=document.getElementById('forceSlider'),
+        mass=document.getElementById('massSlider'),height=document.getElementById('heightSlider');
+
+  function sync(){
+    document.getElementById('angleValue').textContent=`${angle.value}°`;
+    document.getElementById('forceValue').textContent=force.value;
+    document.getElementById('massValue').textContent=`${mass.value} g`;
+    document.getElementById('heightValue').textContent=`${Number(height.value).toFixed(1)} m`;
+    drawField(exploreField,null,null,{
+      angle:Number(angle.value),force:Number(force.value),mass:Number(mass.value),height:Number(height.value)
+    });
+  }
+  [angle,force,mass,height].forEach(x=>x.addEventListener('input',sync));
+  sync();
+
+  document.getElementById('exploreLaunch').addEventListener('click',()=>{
+    if(animating) return;
+    const s={angle:Number(angle.value),force:Number(force.value),mass:Number(mass.value),height:Number(height.value)};
+    const y=processY(s.angle,s.force,s.mass,s.height,true);
+    animateLaunch(exploreField,s,y,()=>{
+      runs.push({...s,y});
+      document.getElementById('exploreResult').innerHTML=`<strong>Y = ${y.toFixed(1)} m</strong><br><span class="small">Run ${runs.length} recorded.</span>`;
+      renderRuns();
+    });
+  });
+
+  function renderRuns(){
+    const body=document.getElementById('runBody');
+    body.innerHTML='';
+    const best=runs.length?[...runs].sort((a,b)=>b.y-a.y)[0]:null;
+    runs.forEach((r,i)=>{
+      const tr=document.createElement('tr');
+      if(best && r===best) tr.classList.add('best');
+      tr.innerHTML=`<td>${i+1}</td><td>${r.angle}°</td><td>${r.force}</td><td>${r.mass} g</td><td>${r.height.toFixed(1)} m</td><td><strong>${r.y.toFixed(1)} m</strong></td>`;
+      body.appendChild(tr);
+    });
+    document.getElementById('runCount').textContent=String(runs.length);
+    document.getElementById('bestDistance').textContent=best?`${best.y.toFixed(1)} m`:'—';
+    if(runs.length){
+      const ys=runs.map(r=>r.y);
+      document.getElementById('yRange').textContent=`${(Math.max(...ys)-Math.min(...ys)).toFixed(1)} m`;
+    }
+    const launch=document.getElementById('exploreLaunch');
+    launch.textContent=`Launch experiment ${runs.length+1}`;
+    launch.disabled=false;
+    document.getElementById('analysisNext').disabled=runs.length<6;
+  }
+
+  // Utilities for regression
+  function mean(a){return a.reduce((s,x)=>s+x,0)/a.length}
+  function sd(a){
+    const m=mean(a);const v=a.reduce((s,x)=>s+(x-m)*(x-m),0)/Math.max(1,a.length-1);
+    return Math.sqrt(v)||1;
+  }
+  function transpose(A){return A[0].map((_,j)=>A.map(r=>r[j]))}
+  function matMul(A,B){
+    const out=Array.from({length:A.length},()=>Array(B[0].length).fill(0));
+    for(let i=0;i<A.length;i++)for(let k=0;k<B.length;k++)for(let j=0;j<B[0].length;j++)out[i][j]+=A[i][k]*B[k][j];
+    return out;
+  }
+  function inverse(M){
+    const n=M.length,A=M.map((r,i)=>[...r,...Array.from({length:n},(_,j)=>i===j?1:0)]);
+    for(let i=0;i<n;i++){
+      let p=i;
+      for(let r=i+1;r<n;r++)if(Math.abs(A[r][i])>Math.abs(A[p][i]))p=r;
+      [A[i],A[p]]=[A[p],A[i]];
+      if(Math.abs(A[i][i])<1e-9) A[i][i]=1e-9;
+      const d=A[i][i];
+      for(let j=0;j<2*n;j++)A[i][j]/=d;
+      for(let r=0;r<n;r++)if(r!==i){
+        const f=A[r][i];
+        for(let j=0;j<2*n;j++)A[r][j]-=f*A[i][j];
+      }
+    }
+    return A.map(r=>r.slice(n));
+  }
+
+  function computeAnalysis(){
+    // Angle is represented by sin(2*theta), because its physical relationship with range is curved.
+    const raw={
+      angle:runs.map(r=>Math.sin(2*r.angle*Math.PI/180)),
+      force:runs.map(r=>r.force),
+      mass:runs.map(r=>r.mass),
+      height:runs.map(r=>r.height),
+      y:runs.map(r=>r.y)
+    };
+    const keys=['angle','force','mass','height'];
+    const Xcols=keys.map(k=>{
+      const m=mean(raw[k]),s=sd(raw[k]);
+      return raw[k].map(v=>(v-m)/s);
+    });
+    const ym=mean(raw.y),ys=sd(raw.y),yz=raw.y.map(v=>(v-ym)/ys);
+    const X=runs.map((_,i)=>[1,...Xcols.map(c=>c[i])]);
+    const Xt=transpose(X), XtX=matMul(Xt,X), inv=inverse(XtX);
+    const yMat=yz.map(v=>[v]);
+    const beta=matMul(matMul(inv,Xt),yMat).map(r=>r[0]).slice(1);
+
+    const items=[
+      {key:'angle',name:'X₁ Angle',coef:beta[0]},
+      {key:'force',name:'X₂ Force',coef:beta[1]},
+      {key:'mass',name:'X₃ Mass',coef:beta[2]},
+      {key:'height',name:'X₄ Height',coef:beta[3]}
+    ].map(x=>({...x,importance:Math.abs(x.coef)}));
+    const total=items.reduce((s,x)=>s+x.importance,0)||1;
+    items.forEach(x=>x.share=x.importance/total);
+    const strongest=[...items].sort((a,b)=>b.importance-a.importance)[0];
+    const best=[...runs].sort((a,b)=>b.y-a.y)[0];
+    return {items,strongest,best};
+  }
+
+  function renderAnalysis(){
+    if(runs.length<6) return;
+    analysis=computeAnalysis();
+    const list=document.getElementById('effectList');
+    list.innerHTML='';
+    const max=Math.max(...analysis.items.map(x=>x.importance),0.01);
+    analysis.items.forEach(x=>{
+      const row=document.createElement('div');row.className='effect-row';
+      let direction=x.coef>=0?'positive':'negative';
+      if(x.key==='angle') direction='curved / optimum near 45°';
+      row.innerHTML=`<div class="effect-top"><span><strong>${x.name}</strong></span><span>${Math.round(x.share*100)}% relative importance</span></div>
+        <div class="effect-track"><div class="effect-fill" style="width:${(x.importance/max)*100}%"></div></div>
+        <div class="small" style="margin-top:6px">Estimated relationship in your runs: ${direction}</div>`;
+      list.appendChild(row);
+    });
+    document.getElementById('strongestFactor').textContent=analysis.strongest.name;
+    document.getElementById('strongestText').textContent=
+      `Based on your experimental runs, ${analysis.strongest.name.replace(/^X\\d\\s/,'')} showed the strongest estimated relationship with Y.`;
+
+    document.getElementById('angleInsight').innerHTML=
+      '<strong>Angle is special:</strong> its relationship is curved. Increasing angle helps only up to a point; in this simplified projectile model, maximum range is generally near the middle of the range rather than at the highest possible angle.';
+    document.getElementById('directionInsight').innerHTML=
+      '<strong>General direction in this simulation:</strong> more spring force tends to increase Y, a heavier ball tends to reduce Y, and greater launch height tends to increase Y slightly.';
+
+    const b=analysis.best;
+    document.getElementById('bestAngle').textContent=`${b.angle}°`;
+    document.getElementById('bestForce').textContent=b.force;
+    document.getElementById('bestMass').textContent=`${b.mass} g`;
+    document.getElementById('bestHeight').textContent=`${b.height.toFixed(1)} m`;
+    document.getElementById('analysisAdvice').innerHTML=
+      `<strong>Your best observed result was ${b.y.toFixed(1)} m.</strong> If the objective is maximum distance, the pattern suggests using stronger force, lighter mass, a relatively high launch height, and an angle around the range that gives the best trajectory—not simply maximising every X.`;
+  }
+
+  function renderSummary(){
+    if(!analysis && runs.length>=6) renderAnalysis();
+    const best=analysis?analysis.best:null;
+    document.getElementById('sumBaseline').textContent=baselineY===null?'—':`${baselineY.toFixed(1)} m`;
+    document.getElementById('sumRuns').textContent=String(runs.length);
+    document.getElementById('sumStrongest').textContent=analysis?analysis.strongest.name:'—';
+    document.getElementById('sumBest').textContent=best?`${best.y.toFixed(1)} m`:'—';
+  }
+
+  // Result PNG
+  const resultCanvas=document.getElementById('resultCanvas'),ctx=resultCanvas.getContext('2d');
+  function wrap(text,x,y,maxWidth,lineHeight){
+    const words=String(text).split(/\s+/);let line='',yy=y;
+    for(const word of words){
+      const test=line?line+' '+word:word;
+      if(ctx.measureText(test).width>maxWidth && line){ctx.fillText(line,x,yy);yy+=lineHeight;line=word}
+      else line=test;
+    }
+    if(line){ctx.fillText(line,x,yy);yy+=lineHeight}
+    return yy;
+  }
+  function drawResultImage(){
+    if(!analysis||runs.length<6) return false;
+    ctx.clearRect(0,0,1400,1050);ctx.fillStyle='#fff';ctx.fillRect(0,0,1400,1050);
+    ctx.fillStyle='#d71920';ctx.fillRect(0,0,18,1050);
+    ctx.fillStyle='#111';ctx.font='bold 42px Arial';ctx.fillText('Y = f(X) Catapult Explorer — My Results',54,70);
+    ctx.font='21px Arial';ctx.fillStyle='#555';
+    const name=(document.getElementById('studentName').value||'Anonymous').trim();
+    ctx.fillText(`Student: ${name}`,54,108);
+
+    ctx.fillStyle='#f5f5f5';ctx.fillRect(50,145,1300,105);
+    ctx.fillStyle='#111';ctx.font='bold 22px Arial';
+    ctx.fillText('Baseline Y',75,185);ctx.fillText('Strongest X',385,185);ctx.fillText('Best Y',795,185);ctx.fillText('Runs',1085,185);
+    ctx.font='25px Arial';
+    ctx.fillText(`${baselineY.toFixed(1)} m`,75,225);
+    ctx.fillText(analysis.strongest.name,385,225);
+    ctx.fillText(`${analysis.best.y.toFixed(1)} m`,795,225);
+    ctx.fillText(String(runs.length),1085,225);
+
+    ctx.font='bold 27px Arial';ctx.fillStyle='#111';ctx.fillText('Estimated factor importance',55,310);
+    const max=Math.max(...analysis.items.map(x=>x.importance),.01);
+    analysis.items.forEach((x,i)=>{
+      const y=380+i*95;
+      ctx.font='19px Arial';ctx.fillStyle='#333';ctx.fillText(x.name,55,y);
+      ctx.fillStyle='#ececec';ctx.fillRect(330,y-22,760,26);
+      ctx.fillStyle='#d71920';ctx.fillRect(330,y-22,760*(x.importance/max),26);
+      ctx.fillStyle='#111';ctx.font='bold 18px Arial';ctx.fillText(`${Math.round(x.share*100)}%`,1120,y);
+    });
+
+    const b=analysis.best;
+    ctx.font='bold 27px Arial';ctx.fillStyle='#111';ctx.fillText('Best observed settings',55,785);
+    ctx.font='21px Arial';ctx.fillStyle='#333';
+    ctx.fillText(`Angle ${b.angle}°  ·  Force ${b.force}  ·  Mass ${b.mass} g  ·  Height ${b.height.toFixed(1)} m`,55,830);
+    ctx.fillText(`Observed output Y = ${b.y.toFixed(1)} m`,55,868);
+
+    ctx.font='bold 27px Arial';ctx.fillStyle='#111';ctx.fillText('Learning point',55,925);
+    ctx.font='19px Arial';ctx.fillStyle='#333';
+    wrap('I changed the X inputs, observed Y, collected data across my experiments, and used the data to identify which factors were most influential. This is the practical meaning of Y = f(X).',55,963,1260,27);
+    ctx.font='15px Arial';ctx.fillStyle='#777';
+    ctx.fillText('SCM60002 · Lean Six Sigma Green Belt · Y = f(X) Activity',55,1032);
+    return true;
+  }
+  function downloadPNG(){
+    if(!drawResultImage()) return;
+    const a=document.createElement('a');a.download='SCM60002_Y_fX_Catapult_Results.png';
+    a.href=resultCanvas.toDataURL('image/png');a.click();
+  }
+  document.getElementById('downloadPngBtn').addEventListener('click',downloadPNG);
+  document.getElementById('downloadPngBtn2').addEventListener('click',downloadPNG);
+
+  document.getElementById('restartBtn').addEventListener('click',()=>{
+    baselineY=null;runs.length=0;analysis=null;
+    document.getElementById('baselineNext').disabled=true;
+    document.getElementById('baselineResult').textContent='Press Launch and observe the output Y.';
+    angle.value=35;force.value=6;mass.value=60;height.value=1.0;sync();
+    document.getElementById('exploreResult').textContent='Change the settings and launch.';
+    document.getElementById('analysisNext').disabled=true;
+    document.getElementById('exploreLaunch').disabled=false;
+    document.getElementById('exploreLaunch').textContent='Launch experiment 1';
+    renderRuns();drawField(field);showScreen(0);
+  });
+
+  renderRuns();
+  showScreen(0);
+})();
+</script>
+</body>
+</html>
